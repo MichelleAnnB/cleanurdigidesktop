@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiny Desktop Cleaning Crew</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            user-select: none;
+            background: #0f172a;
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+        /* Custom scrollbars for control panel */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="relative w-full h-full text-white">
+
+    <!-- Canvas Context -->
+    <canvas id="desktopCanvas" class="absolute inset-0 w-full h-full z-0"></canvas>
+
+    <!-- Top Left Desktop Header / Status -->
+    <div class="absolute top-4 left-4 z-10 pointer-events-none flex flex-col gap-1">
+        <div class="flex items-center gap-2 text-xs font-semibold tracking-wider text-blue-400 uppercase">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Desktop System OS v2.4
+        </div>
+        <h1 class="text-xl font-bold tracking-tight text-white/90 drop-shadow">Tiny Cleaning Crew HQ</h1>
+        <p class="text-xs text-slate-400">Click anywhere on the desktop to generate dust/dirt!</p>
+    </div>
+
+    <!-- Right Control Panel UI Overlay -->
+    <div class="absolute top-4 right-4 z-10 glass-panel rounded-2xl p-4 w-80 shadow-2xl transition-all duration-300">
+        <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+            <div class="flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-5 h-5 text-blue-400"></i>
+                <span class="font-semibold text-sm">Crew Management</span>
+            </div>
+            <span id="crewCountBadge" class="bg-blue-500/20 text-blue-300 text-xs px-2 py-0.5 rounded-full border border-blue-500/30">
+                0 Crew
+            </span>
+        </div>
+
+        <!-- Live Stats -->
+        <div class="grid grid-cols-2 gap-2 mb-4 text-xs">
+            <div class="bg-slate-800/60 p-2.5 rounded-xl border border-white/5">
+                <div class="text-slate-400 mb-0.5">Desktop Cleanliness</div>
+                <div id="cleanlinessText" class="text-lg font-bold text-emerald-400">100%</div>
+                <div class="w-full bg-slate-700 h-1.5 rounded-full mt-1 overflow-hidden">
+                    <div id="cleanlinessBar" class="bg-emerald-400 h-full transition-all duration-300" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div class="bg-slate-800/60 p-2.5 rounded-xl border border-white/5">
+                <div class="text-slate-400 mb-0.5">Trash Bin Items</div>
+                <div id="trashCountText" class="text-lg font-bold text-amber-400">0</div>
+                <div class="text-[10px] text-slate-500 mt-1">Capacity: Infinite</div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="space-y-2 mb-4">
+            <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Command Crew</div>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="btnOrganize" class="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 active:scale-95 text-xs py-2 px-3 rounded-xl font-medium transition shadow-lg shadow-blue-600/20">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i> Organize Icons
+                </button>
+                <button id="btnEmptyTrash" class="flex items-center justify-center gap-2 bg-rose-600/80 hover:bg-rose-500 active:scale-95 text-xs py-2 px-3 rounded-xl font-medium transition shadow-lg shadow-rose-600/20">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i> Empty Bin
+                </button>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="btnAddDust" class="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 active:scale-95 text-xs py-2 px-3 rounded-xl font-medium transition">
+                    <i data-lucide="cloud-rain" class="w-4 h-4 text-amber-300"></i> Scatter Dust
+                </button>
+                <button id="btnAddFiles" class="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 active:scale-95 text-xs py-2 px-3 rounded-xl font-medium transition">
+                    <i data-lucide="file-plus" class="w-4 h-4 text-emerald-300"></i> Messy Files
+                </button>
+            </div>
+        </div>
+
+        <!-- Spawn Worker Types -->
+        <div class="space-y-2">
+            <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Hire Specialist</div>
+            <div class="grid grid-cols-2 gap-1.5 text-xs">
+                <button id="spawnSweeper" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 p-2 rounded-xl border border-white/5 transition text-left">
+                    <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                    <div>
+                        <div class="font-medium">Sweeper</div>
+                        <div class="text-[10px] text-slate-400">Dust & Dirt</div>
+                    </div>
+                </button>
+                <button id="spawnWiper" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 p-2 rounded-xl border border-white/5 transition text-left">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                    <div>
+                        <div class="font-medium">Sprayer</div>
+                        <div class="text-[10px] text-slate-400">Icon Spray/Wipe</div>
+                    </div>
+                </button>
+                <button id="spawnOrganizer" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 p-2 rounded-xl border border-white/5 transition text-left">
+                    <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                    <div>
+                        <div class="font-medium">Organizer</div>
+                        <div class="text-[10px] text-slate-400">Align Folders</div>
+                    </div>
+                </button>
+                <button id="spawnRecycler" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 p-2 rounded-xl border border-white/5 transition text-left">
+                    <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                    <div>
+                        <div class="font-medium">Recycler</div>
+                        <div class="text-[10px] text-slate-400">Paper/Trash</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Speed & Settings Controls -->
+        <div class="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
+            <span class="text-xs text-slate-400">Simulation Speed</span>
+            <div class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-white/5 text-xs">
+                <button id="speed1" class="px-2 py-0.5 rounded-lg bg-blue-600 font-bold">1x</button>
+                <button id="speed2" class="px-2 py-0.5 rounded-lg text-slate-400 hover:text-white">2x</button>
+                <button id="speed4" class="px-2 py-0.5 rounded-lg text-slate-400 hover:text-white">4x</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Effects Context (Tone Synthesis for interaction optional/visual feedback) -->
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Canvas Setup & Simulation State
+        const canvas = document.getElementById('desktopCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        let simSpeed = 1;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            repositionRecycleBin();
+        });
+
+        // Dynamic State Arrays
+        let dustParticles = [];
+        let particles = []; // Sparkles, spray droplets, trash bits
+        let desktopItems = [];
+        let crewMembers = [];
+
+        // Recycle Bin Definition
+        const recycleBin = {
+            x: width - 120,
+            y: height - 140,
+            w: 80,
+            h: 90,
+            contentsCount: 0,
+            isTilting: false,
+            tiltAngle: 0,
+            tiltDirection: 1
+        };
+
+        function repositionRecycleBin() {
+            recycleBin.x = width - 120;
+            recycleBin.y = height - 140;
+        }
+
+        // --- Helper Utilities ---
+        function dist(x1, y1, x2, y2) {
+            return Math.hypot(x2 - x1, y2 - y1);
+        }
+
+        function randomRange(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        // --- Desktop Items Definition ---
+        const ICON_TYPES = {
+            FOLDER: 'folder',
+            FILE: 'file',
+            IMAGE: 'image',
+            APP: 'app'
+        };
+
+        class DesktopItem {
+            constructor(x, y, name, type) {
+                this.x = x;
+                this.y = y;
+                this.targetX = x;
+                this.targetY = y;
+                this.w = 64;
+                this.h = 64;
+                this.name = name;
+                this.type = type;
+                this.dirtLevel = Math.random() < 0.6 ? randomRange(20, 80) : 0;
+                this.isBeingCarried = false;
+                this.carriedBy = null;
+                this.beingCleaned = false;
+                this.isTrash = type === 'trash_item';
+            }
+
+            update() {
+                // Smooth moving to target positions if organized
+                if (!this.isBeingCarried) {
+                    this.x += (this.targetX - this.x) * 0.1 * simSpeed;
+                    this.y += (this.targetY - this.y) * 0.1 * simSpeed;
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Highlight if target/dirty
+                if (this.beingCleaned) {
+                    ctx.shadowColor = '#38bdf8';
+                    ctx.shadowBlur = 12;
+                }
+
+                // Draw Icon Graphics
+                if (this.type === 'folder') {
+                    // Folder Body
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.beginPath();
+                    ctx.roundRect(-28, -20, 56, 40, 6);
+                    ctx.fill();
+                    // Folder Tab
+                    ctx.fillStyle = '#d97706';
+                    ctx.beginPath();
+                    ctx.roundRect(-28, -26, 24, 10, 4);
+                    ctx.fill();
+                } else if (this.type === 'file') {
+                    // Paper File
+                    ctx.fillStyle = '#f8fafc';
+                    ctx.beginPath();
+                    ctx.roundRect(-22, -26, 44, 52, 4);
+                    ctx.fill();
+                    // Lines
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.fillRect(-14, -14, 28, 4);
+                    ctx.fillRect(-14, -6, 20, 4);
+                    ctx.fillRect(-14, 2, 24, 4);
+                } else if (this.type === 'image') {
+                    // Photo Frame
+                    ctx.fillStyle = '#0284c7';
+                    ctx.beginPath();
+                    ctx.roundRect(-24, -24, 48, 48, 6);
+                    ctx.fill();
+                    // Sun / Mountain
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.beginPath();
+                    ctx.arc(-8, -8, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#0369a1';
+                    ctx.beginPath();
+                    ctx.moveTo(-20, 18);
+                    ctx.lineTo(-4, -2);
+                    ctx.lineTo(8, 18);
+                    ctx.fill();
+                } else if (this.type === 'trash_item') {
+                    // Crumpled paper
+                    ctx.fillStyle = '#cbd5e1';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#64748b';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(-6, -6); ctx.lineTo(4, 4);
+                    ctx.moveTo(6, -4); ctx.lineTo(-4, 8);
+                    ctx.stroke();
+                } else {
+                    // Generic App
+                    ctx.fillStyle = '#8b5cf6';
+                    ctx.beginPath();
+                    ctx.roundRect(-24, -24, 48, 48, 12);
+                    ctx.fill();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.shadowBlur = 0;
+
+                // Dirt overlay on icon
+                if (this.dirtLevel > 5) {
+                    ctx.fillStyle = `rgba(120, 80, 40, ${Math.min(0.75, this.dirtLevel / 100)})`;
+                    ctx.beginPath();
+                    ctx.roundRect(-26, -26, 52, 52, 6);
+                    ctx.fill();
+
+                    // Dirt specs
+                    ctx.fillStyle = 'rgba(70, 40, 10, 0.6)';
+                    ctx.fillRect(-10, -12, 6, 6);
+                    ctx.fillRect(8, 10, 8, 4);
+                    ctx.fillRect(-18, 8, 5, 5);
+                }
+
+                // Label
+                if (!this.isTrash) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '10px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(this.name, 0, 38);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // --- Dust & Particle Systems ---
+        class DustParticle {
+            constructor(x, y) {
+                this.x = x || Math.random() * width;
+                this.y = y || Math.random() * height;
+                this.size = randomRange(3, 8);
+                this.opacity = randomRange(0.3, 0.7);
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = `rgba(180, 170, 150, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        class DynamicParticle {
+            constructor(x, y, vx, vy, color, life, type = 'dot') {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.maxLife = life;
+                this.life = life;
+                this.type = type;
+                this.size = randomRange(2, 5);
+            }
+
+            update() {
+                this.x += this.vx * simSpeed;
+                this.y += this.vy * simSpeed;
+                this.life -= simSpeed;
+                if (this.type === 'spray') {
+                    this.vy += 0.05; // Light gravity
+                }
+            }
+
+            draw(ctx) {
+                const alpha = Math.max(0, this.life / this.maxLife);
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.color;
+
+                if (this.type === 'sparkle') {
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate((this.maxLife - this.life) * 0.1);
+                    ctx.fillRect(-this.size, -1, this.size * 2, 2);
+                    ctx.fillRect(-1, -this.size, 2, this.size * 2);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // --- CREW MEMBERS (Tiny Blue Suit Humanoids) ---
+        const ROLE = {
+            SWEEPER: 'sweeper',
+            WIPER: 'wiper',
+            ORGANIZER: 'organizer',
+            RECYCLER: 'recycler'
+        };
+
+        class TinyCleaner {
+            constructor(x, y, role) {
+                this.x = x;
+                this.y = y;
+                this.role = role;
+                this.vx = 0;
+                this.vy = 0;
+                this.speed = randomRange(1.8, 2.3);
+                this.target = null;
+                this.state = 'IDLE'; // IDLE, MOVING, WORKING, CARRYING
+                this.workTimer = 0;
+                this.walkCycle = Math.random() * 100;
+                this.facing = 1; // 1 = right, -1 = left
+
+                // Item carrying slot
+                this.carriedItem = null;
+            }
+
+            update() {
+                this.walkCycle += 0.2 * simSpeed;
+
+                switch (this.role) {
+                    case ROLE.SWEEPER:
+                        this.updateSweeper();
+                        break;
+                    case ROLE.WIPER:
+                        this.updateWiper();
+                        break;
+                    case ROLE.ORGANIZER:
+                        this.updateOrganizer();
+                        break;
+                    case ROLE.RECYCLER:
+                        this.updateRecycler();
+                        break;
+                }
+            }
+
+            moveTo(tx, ty, stoppingDist = 5) {
+                const d = dist(this.x, this.y, tx, ty);
+                if (d > stoppingDist) {
+                    const angle = Math.atan2(ty - this.y, tx - this.x);
+                    this.vx = Math.cos(angle) * this.speed * simSpeed;
+                    this.vy = Math.sin(angle) * this.speed * simSpeed;
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    if (Math.abs(this.vx) > 0.1) {
+                        this.facing = this.vx > 0 ? 1 : -1;
+                    }
+                    return false;
+                } else {
+                    this.vx = 0;
+                    this.vy = 0;
+                    return true;
+                }
+            }
+
+            // --- Sweeper Behavior (Seeks Dust Particles) ---
+            updateSweeper() {
+                if (this.state === 'IDLE' || !this.target || dustParticles.indexOf(this.target) === -1) {
+                    if (dustParticles.length > 0) {
+                        // Find closest dust particle
+                        let closest = null;
+                        let minDist = Infinity;
+                        for (let d of dustParticles) {
+                            let distance = dist(this.x, this.y, d.x, d.y);
+                            if (distance < minDist) {
+                                minDist = distance;
+                                closest = d;
+                            }
+                        }
+                        this.target = closest;
+                        this.state = 'MOVING';
+                    } else {
+                        // Wander idle
+                        this.randomWander();
+                    }
+                } else if (this.state === 'MOVING') {
+                    if (this.moveTo(this.target.x, this.target.y, 10)) {
+                        this.state = 'WORKING';
+                        this.workTimer = 20;
+                    }
+                } else if (this.state === 'WORKING') {
+                    this.workTimer -= simSpeed;
+
+                    // Emit sweeping effect particles
+                    if (Math.random() < 0.4) {
+                        particles.push(new DynamicParticle(
+                            this.x + this.facing * 10,
+                            this.y + 10,
+                            randomRange(-1, 1),
+                            randomRange(-0.5, 0.5),
+                            'rgba(210, 190, 160, 0.6)',
+                            15
+                        ));
+                    }
+
+                    if (this.workTimer <= 0) {
+                        // Remove dust particle
+                        const idx = dustParticles.indexOf(this.target);
+                        if (idx !== -1) dustParticles.splice(idx, 1);
+                        this.target = null;
+                        this.state = 'IDLE';
+                    }
+                }
+            }
+
+            // --- Wiper/Sprayer Behavior (Cleans Dirty Desktop Icons) ---
+            updateWiper() {
+                if (this.state === 'IDLE' || !this.target || this.target.dirtLevel <= 0) {
+                    if (this.target) this.target.beingCleaned = false;
+                    // Find dirty desktop icon
+                    const dirtyItems = desktopItems.filter(i => i.dirtLevel > 0 && !i.beingCleaned && !i.isTrash);
+                    if (dirtyItems.length > 0) {
+                        this.target = dirtyItems[Math.floor(Math.random() * dirtyItems.length)];
+                        this.target.beingCleaned = true;
+                        this.state = 'MOVING';
+                    } else {
+                        this.randomWander();
+                    }
+                } else if (this.state === 'MOVING') {
+                    if (this.moveTo(this.target.x, this.target.y, 35)) {
+                        this.state = 'WORKING';
+                        this.workTimer = 60;
+                    }
+                } else if (this.state === 'WORKING') {
+                    this.workTimer -= simSpeed;
+
+                    // Face icon
+                    this.facing = this.target.x > this.x ? 1 : -1;
+
+                    // Spraying & Wiping Animation loop
+                    if (this.workTimer > 30 && Math.random() < 0.3) {
+                        // Spray liquid droplets
+                        for (let i = 0; i < 3; i++) {
+                            particles.push(new DynamicParticle(
+                                this.x + this.facing * 12,
+                                this.y - 12,
+                                this.facing * randomRange(1, 3),
+                                randomRange(-1, 1),
+                                '#38bdf8',
+                                20,
+                                'spray'
+                            ));
+                        }
+                    } else if (this.workTimer <= 30) {
+                        // Wiping & reduce dirt
+                        this.target.dirtLevel = Math.max(0, this.target.dirtLevel - 2 * simSpeed);
+                        if (Math.random() < 0.4) {
+                            particles.push(new DynamicParticle(
+                                this.target.x + randomRange(-20, 20),
+                                this.target.y + randomRange(-20, 20),
+                                randomRange(-0.5, 0.5),
+                                randomRange(-0.5, 0.5),
+                                '#e0f2fe',
+                                20,
+                                'sparkle'
+                            ));
+                        }
+                    }
+
+                    if (this.workTimer <= 0) {
+                        this.target.dirtLevel = 0;
+                        this.target.beingCleaned = false;
+                        this.target = null;
+                        this.state = 'IDLE';
+                    }
+                }
+            }
+
+            // --- Organizer Behavior (Carries Icons to Unaligned Grid Targets) ---
+            updateOrganizer() {
+                if (this.state === 'IDLE') {
+                    // Find an icon far from its target position
+                    const misplaced = desktopItems.filter(i => !i.isBeingCarried && !i.isTrash && dist(i.x, i.y, i.targetX, i.targetY) > 15);
+                    if (misplaced.length > 0) {
+                        this.target = misplaced[0];
+                        this.target.isBeingCarried = true;
+                        this.target.carriedBy = this;
+                        this.state = 'MOVING_TO_ITEM';
+                    } else {
+                        this.randomWander();
+                    }
+                } else if (this.state === 'MOVING_TO_ITEM') {
+                    if (this.moveTo(this.target.x, this.target.y, 10)) {
+                        this.state = 'CARRYING';
+                        this.carriedItem = this.target;
+                    }
+                } else if (this.state === 'CARRYING') {
+                    // Carry item to target position
+                    this.carriedItem.x = this.x;
+                    this.carriedItem.y = this.y - 28;
+
+                    if (this.moveTo(this.carriedItem.targetX, this.carriedItem.targetY, 10)) {
+                        // Drop item
+                        this.carriedItem.x = this.carriedItem.targetX;
+                        this.carriedItem.y = this.carriedItem.targetY;
+                        this.carriedItem.isBeingCarried = false;
+                        this.carriedItem.carriedBy = null;
+                        this.carriedItem = null;
+                        this.target = null;
+                        this.state = 'IDLE';
+                    }
+                }
+            }
+
+            // --- Recycler Behavior (Picks Up Paper/Trash & Dumps into Bin) ---
+            updateRecycler() {
+                if (this.state === 'IDLE') {
+                    const trash = desktopItems.filter(i => i.isTrash && !i.isBeingCarried);
+                    if (trash.length > 0) {
+                        this.target = trash[0];
+                        this.target.isBeingCarried = true;
+                        this.state = 'MOVING_TO_TRASH';
+                    } else {
+                        this.randomWander();
+                    }
+                } else if (this.state === 'MOVING_TO_TRASH') {
+                    if (this.moveTo(this.target.x, this.target.y, 10)) {
+                        this.state = 'CARRYING_TRASH';
+                        this.carriedItem = this.target;
+                    }
+                } else if (this.state === 'CARRYING_TRASH') {
+                    this.carriedItem.x = this.x;
+                    this.carriedItem.y = this.y - 20;
+
+                    // Move towards Trash Bin
+                    if (this.moveTo(recycleBin.x, recycleBin.y + 20, 20)) {
+                        // Drop into recycle bin
+                        const idx = desktopItems.indexOf(this.carriedItem);
+                        if (idx !== -1) desktopItems.splice(idx, 1);
+                        this.carriedItem = null;
+                        this.target = null;
+                        recycleBin.contentsCount++;
+                        recycleBin.isTilting = true;
+
+                        // Create bin effect particles
+                        for (let i = 0; i < 5; i++) {
+                            particles.push(new DynamicParticle(
+                                recycleBin.x + randomRange(-15, 15),
+                                recycleBin.y - 20,
+                                randomRange(-1, 1),
+                                randomRange(-2, -0.5),
+                                '#94a3b8',
+                                25
+                            ));
+                        }
+
+                        this.state = 'IDLE';
+                    }
+                }
+            }
+
+            randomWander() {
+                if (!this.targetPos || dist(this.x, this.y, this.targetPos.x, this.targetPos.y) < 10) {
+                    this.targetPos = {
+                        x: randomRange(100, width - 100),
+                        y: randomRange(100, height - 100)
+                    };
+                }
+                this.moveTo(this.targetPos.x, this.targetPos.y, 5);
+            }
+
+            // --- Render Blank-Face Blue Suit Character ---
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                const bob = Math.sin(this.walkCycle * 8) * (Math.abs(this.vx) + Math.abs(this.vy) > 0.1 ? 2.5 : 0.5);
+
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                ctx.beginPath();
+                ctx.ellipse(0, 14, 12, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.scale(this.facing, 1);
+
+                // Legs (Animated Blue Jumpsuit Legs)
+                ctx.strokeStyle = '#1d4ed8'; // Darker blue
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+
+                const leg1Angle = Math.sin(this.walkCycle * 8) * 0.4;
+                const leg2Angle = -Math.sin(this.walkCycle * 8) * 0.4;
+
+                // Left Leg
+                ctx.beginPath();
+                ctx.moveTo(-4, 2);
+                ctx.lineTo(-4 + Math.sin(leg1Angle) * 8, 12 + Math.cos(leg1Angle) * 2);
+                ctx.stroke();
+
+                // Right Leg
+                ctx.beginPath();
+                ctx.moveTo(4, 2);
+                ctx.lineTo(4 + Math.sin(leg2Angle) * 8, 12 + Math.cos(leg2Angle) * 2);
+                ctx.stroke();
+
+                // Body (Blue Jumpsuit)
+                ctx.fillStyle = '#2563eb'; // Bright Blue Jumpsuit
+                ctx.beginPath();
+                ctx.roundRect(-9, -14 + bob, 18, 18, 5);
+                ctx.fill();
+
+                // Jumpsuit Belt / Details
+                ctx.fillStyle = '#1e3a8a';
+                ctx.fillRect(-9, 0 + bob, 18, 3);
+
+                // Tool Props based on role
+                if (this.role === ROLE.SWEEPER) {
+                    // Broom
+                    ctx.strokeStyle = '#b45309';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(6, -18 + bob);
+                    ctx.lineTo(14, 14 + bob);
+                    ctx.stroke();
+                    // Broom Bristles
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.beginPath();
+                    ctx.roundRect(11, 10 + bob, 10, 8, 2);
+                    ctx.fill();
+                } else if (this.role === ROLE.WIPER) {
+                    // Spray Bottle in Hand
+                    ctx.fillStyle = '#06b6d4';
+                    ctx.fillRect(8, -8 + bob, 6, 10);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(6, -12 + bob, 6, 4);
+                }
+
+                // Arms
+                ctx.strokeStyle = '#2563eb';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                if (this.carriedItem) {
+                    // Holding overhead
+                    ctx.moveTo(-6, -6 + bob); ctx.lineTo(-10, -18 + bob);
+                    ctx.moveTo(6, -6 + bob); ctx.lineTo(10, -18 + bob);
+                } else {
+                    ctx.moveTo(-6, -6 + bob); ctx.lineTo(-10 + Math.sin(this.walkCycle * 8) * 4, 2 + bob);
+                    ctx.moveTo(6, -6 + bob); ctx.lineTo(10 - Math.sin(this.walkCycle * 8) * 4, 2 + bob);
+                }
+                ctx.stroke();
+
+                // Featureless Blank Face Head
+                // Smooth rounded egg/sphere with NO face features (eyes/nose/mouth)
+                ctx.fillStyle = '#f8fafc'; // Featureless smooth white/porcelain head
+                ctx.beginPath();
+                ctx.arc(0, -20 + bob, 10, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Optional subtle cap/hood
+                ctx.fillStyle = '#1d4ed8';
+                ctx.beginPath();
+                ctx.arc(0, -22 + bob, 10.5, Math.PI, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            }
+        }
+
+        // --- Recycle Bin Visuals ---
+        function drawRecycleBin(ctx) {
+            ctx.save();
+            ctx.translate(recycleBin.x, recycleBin.y);
+
+            if (recycleBin.isTilting) {
+                recycleBin.tiltAngle += 0.1 * recycleBin.tiltDirection * simSpeed;
+                if (recycleBin.tiltAngle > 0.2) recycleBin.tiltDirection = -1;
+                if (recycleBin.tiltAngle < 0) {
+                    recycleBin.tiltAngle = 0;
+                    recycleBin.tiltDirection = 1;
+                    recycleBin.isTilting = false;
+                }
+                ctx.rotate(recycleBin.tiltAngle);
+            }
+
+            // Trash Bin Body
+            ctx.fillStyle = 'rgba(30, 41, 59, 0.8)';
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 3;
+
+            ctx.beginPath();
+            ctx.roundRect(-recycleBin.w / 2, -recycleBin.h / 2, recycleBin.w, recycleBin.h, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            // Recycle Logo Graphic on Bin
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, 14, 0, Math.PI * 1.5);
+            ctx.stroke();
+
+            // Bin Contents counter badge
+            if (recycleBin.contentsCount > 0) {
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(recycleBin.w / 2 - 4, -recycleBin.h / 2 + 4, 11, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(recycleBin.contentsCount, recycleBin.w / 2 - 4, -recycleBin.h / 2 + 5);
+            }
+
+            // Text Label
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Recycle Bin', 0, recycleBin.h / 2 + 18);
+
+            ctx.restore();
+        }
+
+        // --- Setup Initial Desktop Scene ---
+        function initDesktop() {
+            desktopItems = [];
+            dustParticles = [];
+            crewMembers = [];
+
+            // Spawn initial desktop icons (Folders & Apps)
+            const iconNames = ['Projects', 'Photos', 'Budget.xlsx', 'Design', 'Notes.txt', 'Browser', 'Music', 'Client_Brief'];
+            const types = ['folder', 'image', 'file', 'folder', 'file', 'app', 'app', 'file'];
+
+            // Grid Layout calculation
+            const cols = 2;
+            const startX = 80;
+            const startY = 100;
+            const spacingY = 90;
+            const spacingX = 100;
+
+            for (let i = 0; i < iconNames.length; i++) {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+
+                // Intentionally scatter some target positions vs initial positions for organizing demo
+                const targetX = startX + col * spacingX;
+                const targetY = startY + row * spacingY;
+
+                // Scatter initially
+                const initX = targetX + randomRange(-40, 200);
+                const initY = targetY + randomRange(-30, 150);
+
+                const item = new DesktopItem(initX, initY, iconNames[i], types[i]);
+                item.targetX = targetX;
+                item.targetY = targetY;
+                desktopItems.push(item);
+            }
+
+            // Scatter initial dust particles
+            for (let i = 0; i < 40; i++) {
+                dustParticles.push(new DustParticle());
+            }
+
+            // Add a few messy trash items
+            for (let i = 0; i < 5; i++) {
+                desktopItems.push(new DesktopItem(
+                    randomRange(250, width - 250),
+                    randomRange(150, height - 200),
+                    'Trash',
+                    'trash_item'
+                ));
+            }
+
+            // Spawn initial Crew
+            crewMembers.push(new TinyCleaner(200, 200, ROLE.SWEEPER));
+            crewMembers.push(new TinyCleaner(300, 300, ROLE.WIPER));
+            crewMembers.push(new TinyCleaner(400, 250, ROLE.ORGANIZER));
+            crewMembers.push(new TinyCleaner(500, 400, ROLE.RECYCLER));
+        }
+
+        // --- UI Interactions & Event Handlers ---
+        document.getElementById('spawnSweeper').addEventListener('click', () => {
+            crewMembers.push(new TinyCleaner(width / 2, height / 2, ROLE.SWEEPER));
+        });
+        document.getElementById('spawnWiper').addEventListener('click', () => {
+            crewMembers.push(new TinyCleaner(width / 2, height / 2, ROLE.WIPER));
+        });
+        document.getElementById('spawnOrganizer').addEventListener('click', () => {
+            crewMembers.push(new TinyCleaner(width / 2, height / 2, ROLE.ORGANIZER));
+        });
+        document.getElementById('spawnRecycler').addEventListener('click', () => {
+            crewMembers.push(new TinyCleaner(width / 2, height / 2, ROLE.RECYCLER));
+        });
+
+        document.getElementById('btnOrganize').addEventListener('click', () => {
+            // Instantly snap icons into alignment grid
+            desktopItems.forEach((item, idx) => {
+                if (!item.isTrash) {
+                    const col = idx % 2;
+                    const row = Math.floor(idx / 2);
+                    item.targetX = 80 + col * 100;
+                    item.targetY = 100 + row * 90;
+                }
+            });
+        });
+
+        document.getElementById('btnEmptyTrash').addEventListener('click', () => {
+            if (recycleBin.contentsCount > 0) {
+                recycleBin.contentsCount = 0;
+                // Burst effect
+                for (let i = 0; i < 20; i++) {
+                    particles.push(new DynamicParticle(
+                        recycleBin.x, recycleBin.y,
+                        randomRange(-4, 4), randomRange(-4, 2),
+                        '#64748b', 30
+                    ));
+                }
+            }
+        });
+
+        document.getElementById('btnAddDust').addEventListener('click', () => {
+            for (let i = 0; i < 25; i++) {
+                dustParticles.push(new DustParticle());
+            }
+        });
+
+        document.getElementById('btnAddFiles').addEventListener('click', () => {
+            for (let i = 0; i < 4; i++) {
+                desktopItems.push(new DesktopItem(
+                    randomRange(200, width - 300),
+                    randomRange(100, height - 200),
+                    'Trash',
+                    'trash_item'
+                ));
+            }
+        });
+
+        // Speed Toggles
+        const speedBtns = [
+            { id: 'speed1', speed: 1 },
+            { id: 'speed2', speed: 2 },
+            { id: 'speed4', speed: 4 }
+        ];
+
+        speedBtns.forEach(btnInfo => {
+            document.getElementById(btnInfo.id).addEventListener('click', (e) => {
+                simSpeed = btnInfo.speed;
+                speedBtns.forEach(b => {
+                    const el = document.getElementById(b.id);
+                    if (b.id === btnInfo.id) {
+                        el.className = 'px-2 py-0.5 rounded-lg bg-blue-600 font-bold text-white';
+                    } else {
+                        el.className = 'px-2 py-0.5 rounded-lg text-slate-400 hover:text-white';
+                    }
+                });
+            });
+        });
+
+        // User Click to Add Dirt
+        canvas.addEventListener('pointerdown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            // Spawn dust around click point
+            for (let i = 0; i < 8; i++) {
+                dustParticles.push(new DustParticle(
+                    clickX + randomRange(-30, 30),
+                    clickY + randomRange(-30, 30)
+                ));
+            }
+        });
+
+        // Update Cleanliness UI
+        function updateStatsUI() {
+            document.getElementById('crewCountBadge').innerText = `${crewMembers.length} Crew`;
+            document.getElementById('trashCountText').innerText = recycleBin.contentsCount;
+
+            const totalDirtyPoints = dustParticles.length + desktopItems.reduce((acc, i) => acc + (i.dirtLevel > 0 ? 1 : 0), 0);
+            const cleanliness = Math.max(0, 100 - Math.min(100, Math.floor(totalDirtyPoints * 1.8)));
+
+            const cleanText = document.getElementById('cleanlinessText');
+            const cleanBar = document.getElementById('cleanlinessBar');
+
+            cleanText.innerText = `${cleanliness}%`;
+            cleanBar.style.width = `${cleanliness}%`;
+
+            if (cleanliness < 50) {
+                cleanBar.className = 'bg-rose-500 h-full transition-all duration-300';
+                cleanText.className = 'text-lg font-bold text-rose-400';
+            } else if (cleanliness < 80) {
+                cleanBar.className = 'bg-amber-400 h-full transition-all duration-300';
+                cleanText.className = 'text-lg font-bold text-amber-400';
+            } else {
+                cleanBar.className = 'bg-emerald-400 h-full transition-all duration-300';
+                cleanText.className = 'text-lg font-bold text-emerald-400';
+            }
+        }
+
+        // --- MAIN ANIMATION LOOP ---
+        function animate() {
+            // Desktop Gradient Background
+            const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+            bgGrad.addColorStop(0, '#0f172a');
+            bgGrad.addColorStop(0.5, '#1e1b4b');
+            bgGrad.addColorStop(1, '#0f172a');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, width, height);
+
+            // Subtle Grid wallpaper lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            const gridSize = 40;
+            for (let x = 0; x < width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0); ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y); ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+
+            // Draw Dust Particles
+            dustParticles.forEach(d => d.draw(ctx));
+
+            // Draw Recycle Bin
+            drawRecycleBin(ctx);
+
+            // Draw Desktop Items
+            desktopItems.forEach(item => {
+                item.update();
+                item.draw(ctx);
+            });
+
+            // Update & Draw Crew Members
+            crewMembers.forEach(crew => {
+                crew.update();
+                crew.draw(ctx);
+            });
+
+            // Update & Draw Visual FX Particles (spray drops, dust puffs, sparkles)
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.update();
+                p.draw(ctx);
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            updateStatsUI();
+
+            requestAnimationFrame(animate);
+        }
+
+        // Initialization on Load
+        window.onload = function() {
+            repositionRecycleBin();
+            initDesktop();
+            animate();
+        };
+    </script>
+</body>
+</html>
